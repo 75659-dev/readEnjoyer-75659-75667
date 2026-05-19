@@ -1,0 +1,163 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+
+enum ReadingStatus {
+  WANT_TO_READ
+  READING
+  READ
+}
+
+model User {
+  id                  String   @id @default(uuid())
+  username            String   @unique
+  email               String   @unique
+  password            String?
+  googleId            String?  @unique
+  hashedRt            String?
+  role                Role     @default(USER)
+
+  isEmailVerified     Boolean  @default(false)
+  verificationToken   String?  @unique
+  
+  avatar              String?  
+
+
+  orders              Order[]
+  library             UserLibrary[] 
+  reviews             Review[]      
+  comments            Comment[]     
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Book {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  price       Float
+  stock       Int       @default(0)
+  image       String?   
+  
+
+  pages       Int?      
+  publishYear Int?      
+
+  author      Author    @relation(fields: [authorId], references: [id])
+  authorId    Int
+  
+  categories  Category[] 
+  orderItems  OrderItem[]
+  
+
+  libraryItems UserLibrary[] 
+  reviews      Review[]
+
+  createdAt   DateTime  @default(now())
+}
+
+model Author {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  bio         String?   
+  image       String?   
+  books       Book[]
+}
+
+model Category {
+  id    Int     @id @default(autoincrement())
+  name  String  @unique
+  books Book[]
+}
+
+
+
+
+
+
+model UserLibrary {
+  id          String        @id @default(uuid())
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  book        Book          @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  bookId      Int
+  
+  status      ReadingStatus @default(WANT_TO_READ)
+  pagesRead   Int           @default(0) 
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+
+  @@unique([userId, bookId]) 
+}
+
+
+model Review {
+  id          String    @id @default(uuid())
+  rating      Int       
+  text        String?   
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  book        Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  bookId      Int
+
+  comments    Comment[] 
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+
+  @@unique([userId, bookId])
+}
+
+
+model Comment {
+  id          String    @id @default(uuid())
+  text        String
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  review      Review    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reviewId    String
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+
+
+
+
+model Order {
+  id        Int         @id @default(autoincrement())
+  user      User        @relation(fields: [userId], references: [id])
+  userId    String
+  items     OrderItem[]
+  total     Float
+  status    String      @default("PENDING") 
+  createdAt DateTime    @default(now())
+}
+
+model OrderItem {
+  id       Int   @id @default(autoincrement())
+  order    Order @relation(fields: [orderId], references: [id])
+  orderId  Int
+  book     Book  @relation(fields: [bookId], references: [id])
+  bookId   Int
+  quantity Int
+  price    Float 
+}

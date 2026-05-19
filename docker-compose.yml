@@ -1,0 +1,62 @@
+version: "3.8"
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d mydb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: strongpassword
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+  backend:
+    build: ./backend
+    volumes:
+      - ./backend:/app # Mount backend code into container
+      - /app/node_modules
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: "postgresql://user:password@db:5432/mydb"
+    ports:
+      - "3000:3000"
+      - "5555:5555" # prisma studio
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app # For instant code reload without rebuilding the image
+      - /app/node_modules
+    environment:
+      CHOKIDAR_USEPOLLING: "true" # For correct chokidar behavior in Docker on Windows/Mac
+
+volumes:
+  postgres_data:
+  minio_data:
