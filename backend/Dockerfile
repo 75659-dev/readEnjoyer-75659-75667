@@ -5,6 +5,7 @@ WORKDIR /app
 # First copy only files needed for installing dependencies
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
 # Install dependencies
 RUN npm install
