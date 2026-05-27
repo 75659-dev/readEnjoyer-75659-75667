@@ -1,8 +1,17 @@
 // src/files/files.service.ts
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+} from '@aws-sdk/client-s3';
 import { ConfigService } from '@nestjs/config';
 import 'multer';
+import { Readable } from 'stream';
 @Injectable()
 export class FilesService {
   private s3Client: S3Client;
@@ -41,6 +50,45 @@ export class FilesService {
       return fileId;
     } catch (e: any) {
       throw new InternalServerErrorException('File upload error: ' + e.message);
+    }
+  }
+
+  async getFileStream(
+    fileId: string,
+  ): Promise<{ stream: Readable; contentType: string }> {
+    try {
+      const bucket = this.configService.get<string>('S3_BUCKET_NAME') as string;
+
+      const output = await this.s3Client.send(
+        new GetObjectCommand({
+          Bucket: bucket,
+          Key: fileId,
+        }),
+      );
+
+      // In Node.js environment output.Body is a Readable stream
+      const body = output.Body as unknown as Readable | undefined;
+      const contentType =
+        (output.ContentType as string) || 'application/octet-stream';
+
+      if (!body) {
+        throw new NotFoundException('File not found');
+      }
+
+      return { stream: body as Readable, contentType };
+    } catch (e: any) {
+      // S3 returns NoSuchKey when object does not exist
+      if (
+        e?.name === 'NoSuchKey' ||
+        e?.Code === 'NoSuchKey' ||
+        e?.$metadata?.httpStatusCode === 404
+      ) {
+        throw new NotFoundException('File not found');
+      }
+
+      throw new InternalServerErrorException(
+        'File download error: ' + (e?.message || e),
+      );
     }
   }
 }

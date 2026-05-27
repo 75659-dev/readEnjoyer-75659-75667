@@ -50,13 +50,21 @@ export class FilesController {
   @Get(':id')
   @ApiOperation({ summary: 'Get image by ID' })
   async getFile(@Param('id') id: string, @Res() res: Response) {
-    const publicUrl = this.configService.get<string>('S3_PUBLIC_URL');
-    const bucket = this.configService.get<string>('S3_BUCKET_NAME');
+    const { stream, contentType } = await this.filesService.getFileStream(id);
 
-    // Build direct link to MinIO
-    const minioUrl = `${publicUrl}/${bucket}/${id}`;
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
 
-    // Redirect browser to MinIO
-    return res.redirect(minioUrl);
+    // Pipe the S3/MinIO stream directly to the client
+    stream.on('error', (err) => {
+      // If streaming fails, ensure the response is ended
+      if (!res.headersSent) {
+        res.status(500).end();
+      } else {
+        res.end();
+      }
+    });
+
+    stream.pipe(res);
   }
 }
