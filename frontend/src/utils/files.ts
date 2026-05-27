@@ -6,8 +6,20 @@ export function getFileUrl(fileIdOrUrl?: string | null) {
   }
 
   if (/^https?:\/\//i.test(fileIdOrUrl)) {
-    return fileIdOrUrl;
+    const url = fileIdOrUrl;
+    try {
+      // eslint-disable-next-line no-console
+      console.debug('[getFileUrl] ->', url);
+    } catch {}
+
+    return url;
   }
 
-  return `${API_BASE_URL}/files/${encodeURIComponent(fileIdOrUrl)}`;
+  const url = `${API_BASE_URL}/files/${encodeURIComponent(fileIdOrUrl)}`;
+  try {
+    // eslint-disable-next-line no-console
+    console.debug('[getFileUrl] ->', url);
+  } catch {}
+
+  return url;
 }
