@@ -12,7 +12,6 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { FilesService } from './files.service';
-import { ConfigService } from '@nestjs/config';
 import { AtGuard } from '../auth/guards/at.guard';
 import {
   ApiTags,
@@ -25,10 +24,7 @@ import {
 @ApiTags('Files')
 @Controller('files')
 export class FilesController {
-  constructor(
-    private readonly filesService: FilesService,
-    private readonly configService: ConfigService,
-  ) {}
+  constructor(private readonly filesService: FilesService) {}
 
   @Post('upload')
   @ApiBearerAuth()
@@ -49,21 +45,12 @@ export class FilesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get image by ID' })
-  async getFile(@Param('id') id: string, @Res() res: Response) {
+  async getFile(@Param('id') id: string, @Res() res: Response): Promise<void> {
     const { stream, contentType } = await this.filesService.getFileStream(id);
 
+    res.status(200);
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=31536000');
-
-    // Pipe the S3/MinIO stream directly to the client
-    stream.on('error', (err) => {
-      // If streaming fails, ensure the response is ended
-      if (!res.headersSent) {
-        res.status(500).end();
-      } else {
-        res.end();
-      }
-    });
 
     stream.pipe(res);
   }

@@ -75,7 +75,7 @@ export class FilesService {
         throw new NotFoundException('File not found');
       }
 
-      return { stream: body as Readable, contentType };
+      return { stream: body, contentType };
     } catch (e: any) {
       // S3 returns NoSuchKey when object does not exist
       if (
